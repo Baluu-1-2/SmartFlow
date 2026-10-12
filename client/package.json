@@ -34,7 +34,13 @@
     "postcss": "^8.5.3",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.2",
+    "rollup": "4.64.5",
     "vite": "^6.2.0",
     "vitest": "^3.0.7"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "4.64.5",
+    "@rollup/rollup-linux-x64-musl": "4.64.5",
+    "@rollup/rollup-win32-x64-msvc": "4.64.5"
   }
 }
