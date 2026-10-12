@@ -1,0 +1,233 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model User {
+  id              String           @id @default(cuid())
+  email           String           @unique
+  passwordHash    String
+  name            String
+  avatarUrl       String?
+  timezone        String           @default("UTC")
+  theme           String           @default("system")
+  defaultPriority Priority         @default(MEDIUM)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  
+  settings        UserSettings?
+  tasks           Task[]
+  projects        Project[]
+  tags            Tag[]
+  habits          Habit[]
+  focusSessions   FocusSession[]
+  notifications   Notification[]
+  aiConversations AIConversation[]
+
+  @@map("users")
+}
+
+model UserSettings {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  focusDuration        Int      @default(25)
+  shortBreakDuration   Int      @default(5)
+  longBreakDuration    Int      @default(15)
+  soundEnabled         Boolean  @default(true)
+  browserNotifications Boolean  @default(false)
+  emailReminders       Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@map("user_settings")
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  color       String   @default("#7c3aed")
+  category    String?
+  isArchived  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  tasks       Task[]
+
+  @@index([userId])
+  @@map("projects")
+}
+
+model Task {
+  id               String         @id @default(cuid())
+  userId           String
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId        String?
+  project          Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  title            String
+  description      String?
+  priority         Priority       @default(MEDIUM)
+  status           TaskStatus     @default(TODO)
+  dueDate          DateTime?
+  estimatedMinutes Int?
+  actualMinutes    Int            @default(0)
+  reminderAt       DateTime?
+  order            Int            @default(0)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  subtasks         Subtask[]
+  taskTags         TaskTag[]
+  focusSessions    FocusSession[]
+
+  @@index([userId, status])
+  @@index([userId, dueDate])
+  @@index([projectId])
+  @@map("tasks")
+}
+
+model Subtask {
+  id          String   @id @default(cuid())
+  taskId      String
+  task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  title       String
+  isCompleted Boolean  @default(false)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([taskId])
+  @@map("subtasks")
+}
+
+model Tag {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  color     String    @default("#6366f1")
+  taskTags  TaskTag[]
+  createdAt DateTime  @default(now())
+
+  @@unique([userId, name])
+  @@map("tags")
+}
+
+model TaskTag {
+  id     String @id @default(cuid())
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  tagId  String
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, tagId])
+  @@map("task_tags")
+}
+
+model Habit {
+  id          String            @id @default(cuid())
+  userId      String
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  frequency   String            @default("daily")
+  targetDays  String            @default("[0,1,2,3,4,5,6]")
+  color       String            @default("#10b981")
+  isArchived  Boolean           @default(false)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  completions HabitCompletion[]
+
+  @@index([userId])
+  @@map("habits")
+}
+
+model HabitCompletion {
+  id          String   @id @default(cuid())
+  habitId     String
+  habit       Habit    @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  date        String
+  completedAt DateTime @default(now())
+  notes       String?
+
+  @@unique([habitId, date])
+  @@index([habitId])
+  @@map("habit_completions")
+}
+
+model FocusSession {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  taskId          String?
+  task            Task?    @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  durationMinutes Int
+  sessionType     String   @default("pomodoro")
+  startedAt       DateTime
+  completedAt     DateTime @default(now())
+
+  @@index([userId, completedAt])
+  @@map("focus_sessions")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String   @default("reminder")
+  isRead    Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+model AIConversation {
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String      @default("Productivity Planning")
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  messages  AIMessage[]
+
+  @@index([userId])
+  @@map("ai_conversations")
+}
+
+model AIMessage {
+  id             String         @id @default(cuid())
+  conversationId String
+  conversation   AIConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String
+  content        String
+  metadata       String?
+  createdAt      DateTime       @default(now())
+
+  @@index([conversationId])
+  @@map("ai_messages")
+}
